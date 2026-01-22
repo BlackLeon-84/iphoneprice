@@ -200,8 +200,7 @@ if not df.empty:
             # 1. 악세사리 처리
             cat = row["카테고리"]
             if str(cat).startswith("Acc_"):
-                if "Apple" in cat: return "Apple"
-                return "기타 악세사리"
+                return "악세사리"
 
             # 2. 아이폰 모델 파싱
             name = row["상품명"]
@@ -217,11 +216,17 @@ if not df.empty:
         def extract_part(row):
             name = row["상품명"]
             cat = row["카테고리"]
+            model_name = row["모델"]
 
-            # [New] 악세사리 부품 매핑
-            if str(cat).startswith("Acc_"):
-                if "Comp" in cat: return "구성품"
-                if "Film" in cat: return "필름/케이스"
+            # [New] 악세사리 부품 상세 분류
+            if str(cat).startswith("Acc_") or "악세" in str(cat) or model_name == "악세사리":
+                # 1. 필름류 (필름, 카메라링, 카메라필름)
+                if any(x in name for x in ["필름", "카메라링", "카메라 링", "강화유리"]): return "필름"
+                # 2. 케이스류
+                if "케이스" in name: return "케이스"
+                # 3. 케이블/어댑터류
+                if any(x in name for x in ["케이블", "어댑터", "어덥터", "충전기", "젠더"]): return "케이블, 어댑터"
+                # 4. 기타
                 return "기타"
 
             # [User Request] 제외 필터 (하우징, 일반형 등)
@@ -250,7 +255,7 @@ if not df.empty:
         series_map = {}
         for m in unique_models:
             grp = "기타"
-            if m == "Apple": grp = "악세사리" # [New]
+            if m == "악세사리": grp = "악세사리"
             elif "17" in m: grp = "iPhone 17 Series"
             elif "16" in m: grp = "iPhone 16 Series"
             elif "15" in m: grp = "iPhone 15 Series"
@@ -273,7 +278,7 @@ if not df.empty:
             df, series_map = get_processed_data(df)
             
             # 순서 보장을 위한 리스트 정의 (최신순)
-            SERIES_ORDER = ["악세사리", "iPhone 17 Series", "iPhone 16 Series", "iPhone 15 Series", "iPhone 14 Series", "iPhone 13 Series", "iPhone 12 Series", "iPhone 11 Series", "iPhone X/XS/XR Series", "iPhone SE/8/7/6 Series"]
+            SERIES_ORDER = ["iPhone 17 Series", "iPhone 16 Series", "iPhone 15 Series", "iPhone 14 Series", "iPhone 13 Series", "iPhone 12 Series", "iPhone 11 Series", "iPhone X/XS/XR Series", "iPhone SE/8/7/6 Series", "악세사리"]
             
             # Session State 초기화
             if "selected_model" not in st.session_state:
@@ -375,8 +380,8 @@ if not df.empty:
                                 st.session_state.selected_model = new_model
                                 
                                 # [Fix] 악세사리(Apple)는 '액정'이 없으므로 '구성품'을 기본값으로 설정
-                                if new_model == "Apple":
-                                    st.session_state.selected_part = "구성품"
+                                if new_model == "악세사리":
+                                    st.session_state.selected_part = "필름"
                                 else:
                                     st.session_state.selected_part = "액정"
                                     
