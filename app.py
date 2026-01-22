@@ -168,9 +168,10 @@ if not df.empty:
     latest_date = df["수집일시"].dt.strftime("%Y-%m-%d %H:%M").iloc[0]
     st.caption(f"최종 업데이트: {latest_date} (KST)")
 
-    # [Scope Change] iPhone 데이터만 표시
+    # [Scope Change] iPhone 데이터 및 악세사리 표시
     if "카테고리" in df.columns:
-        df = df[df["카테고리"] == "iPhone"]
+        # iPhone 또는 Acc_로 시작하는 카테고리만 포함
+        df = df[ (df["카테고리"] == "iPhone") | (df["카테고리"].str.startswith("Acc_")) ]
 
     # 탭 구성: 검색 / 변동 내역 / 전체 목록
     tab1, tab3, tab2 = st.tabs(["🔍 부품 검색", "📉 변동 내역", "📋 전체 목록"])
@@ -195,22 +196,45 @@ if not df.empty:
             ("7+", "iPhone 7 Plus"), ("7", "iPhone 7"), ("6+", "iPhone 6 Plus"), ("6", "iPhone 6")
         ]
 
-        def extract_model_precise(name):
+        def extract_model_precise(row):
+            # 1. 악세사리 처리
+            cat = row["카테고리"]
+            if str(cat).startswith("Acc_"):
+                return "악세사리"
+
+            # 2. 아이폰 모델 파싱
+            name = row["상품명"]
             for pattern, display_name in MODEL_MAPPING:
                 if pattern.lower() in name.lower():
                     return display_name
             return "기타"
 
-        df["모델"] = df["상품명"].apply(extract_model_precise)
+        # [Changed] apply시 axis=1 사용 (카테고리 정보 접근 위해)
+        df["모델"] = df.apply(extract_model_precise, axis=1)
         
         # [Optimization] 부품명 파싱도 미리 수행 (캐싱)
-        def extract_part(name):
+        def extract_part(row):
+            name = row["상품명"]
+            cat = row["카테고리"]
+            model_name = row["모델"]
+
+            # [New] 악세사리 부품 상세 분류
+            if str(cat).startswith("Acc_") or "악세" in str(cat) or model_name == "악세사리":
+                # 1. 필름류 (필름, 카메라링, 카메라필름)
+                if any(x in name for x in ["필름", "카메라링", "카메라 링", "강화유리"]): return "필름"
+                # 2. 케이스류
+                if "케이스" in name: return "케이스"
+                # 3. 케이블/어댑터류
+                if any(x in name for x in ["케이블", "어댑터", "어덥터", "충전기", "젠더"]): return "케이블, 어댑터"
+                # 4. 기타
+                return "기타"
+
             # [User Request] 제외 필터 (하우징, 일반형 등)
             if "하우징" in name: return None
-            if "(베젤형)" in name: return None # [User Request] 베젤형 하우징 제외
+            if "(베젤형)" in name: return None
             if "(일반형)" in name: return None
             if "(고급형)" in name: return None
-            if "13Pro 골드" in name: return None # 구체적인 예시 차단
+            if "13Pro 골드" in name: return None
             
             # 명시적 카테고리 (케이블은 기타로 통합되므로 제거)
             if "액정" in name: return "액정"
@@ -219,11 +243,11 @@ if not df.empty:
             if "유리" in name: return "후면유리"
             if "보드" in name: return "메인보드"
             
-            # 나머지는 모두 '기타'
             return "기타"
 
-        df["부품"] = df["상품명"].apply(extract_part)
-        # [Filter] None(하우징 등) 제거 (여기서 미리 제거하여 데이터량 축소)
+        # [Changed] apply시 axis=1 사용
+        df["부품"] = df.apply(extract_part, axis=1)
+        # [Filter] None 제거
         df = df.dropna(subset=["부품"])
 
         # 시리즈 매핑
@@ -231,7 +255,8 @@ if not df.empty:
         series_map = {}
         for m in unique_models:
             grp = "기타"
-            if "17" in m: grp = "iPhone 17 Series"
+            if m == "악세사리": grp = "악세사리"
+            elif "17" in m: grp = "iPhone 17 Series"
             elif "16" in m: grp = "iPhone 16 Series"
             elif "15" in m: grp = "iPhone 15 Series"
             elif "14" in m: grp = "iPhone 14 Series"
@@ -253,16 +278,7 @@ if not df.empty:
             df, series_map = get_processed_data(df)
             
             # 순서 보장을 위한 리스트 정의 (최신순)
-            SERIES_ORDER = ["iPhone 17 Series", "iPhone 16 Series", "iPhone 15 Series", "iPhone 14 Series", "iPhone 13 Series", "iPhone 12 Series", "iPhone 11 Series", "iPhone X/XS/XR Series", "iPhone SE/8/7/6 Series"]
-            
-            # Session State 초기화
-            if "selected_model" not in st.session_state:
-                st.session_state.selected_model = None
-            if "selected_part" not in st.session_state:
-                st.session_state.selected_part = None
-            
-            # 순서 보장을 위한 리스트 정의 (최신순)
-            SERIES_ORDER = ["iPhone 17 Series", "iPhone 16 Series", "iPhone 15 Series", "iPhone 14 Series", "iPhone 13 Series", "iPhone 12 Series", "iPhone 11 Series", "iPhone X/XS/XR Series", "iPhone SE/8/7/6 Series"]
+            SERIES_ORDER = ["iPhone 17 Series", "iPhone 16 Series", "iPhone 15 Series", "iPhone 14 Series", "iPhone 13 Series", "iPhone 12 Series", "iPhone 11 Series", "iPhone X/XS/XR Series", "iPhone SE/8/7/6 Series", "악세사리"]
             
             # Session State 초기화
             if "selected_model" not in st.session_state:
@@ -360,8 +376,15 @@ if not df.empty:
                             
                             # 선택 이벤트 처리
                             if selection and (st.session_state.selected_model != short_label_map[selection]):
-                                st.session_state.selected_model = short_label_map[selection]
-                                st.session_state.selected_part = "액정"
+                                new_model = short_label_map[selection]
+                                st.session_state.selected_model = new_model
+                                
+                                # [Fix] 악세사리(Apple)는 '액정'이 없으므로 '구성품'을 기본값으로 설정
+                                if new_model == "악세사리":
+                                    st.session_state.selected_part = "필름"
+                                else:
+                                    st.session_state.selected_part = "액정"
+                                    
                                 st.rerun()
                     
             # [UI State 2] 모델이 선택되었을 때 -> 부품 선택 및 결과 화면
@@ -634,44 +657,39 @@ if not df.empty:
         # [Cache] 히스토리 계산 로직 캐싱 (탭 전환 시 렉 방지)
         @st.cache_data(show_spinner=False)
         def get_history_data(df):
-            dates = sorted(df["수집일시"].unique(), reverse=True)
-            if len(dates) < 2:
-                return dates, []
+            # 1. 날짜만 추출 (YYYY-MM-DD)
+            df["date_only"] = df["수집일시"].dt.date
+            unique_days = sorted(df["date_only"].unique(), reverse=True)
             
-            # 루프 안에서 매번 df를 필터링하면(df[...]) 속도가 느려질 수 있음.
-            # 필요한 날짜의 데이터를 미리 딕셔너리로 준비.
-            search_limit = min(len(dates), 50)
-            target_dates = dates[:search_limit]
+            if len(unique_days) < 2:
+                return [d.strftime("%Y-%m-%d") for d in unique_days], []
             
-            daily_data = {}
-            for d in target_dates:
-                daily_data[d] = df[df["수집일시"] == d].set_index("상품명")
-                
             history_list = []
-            history_count = 0
-            max_history = 7 
             
-            for i in range(search_limit - 1):
-                if history_count >= max_history:
-                    break
-                    
-                recent_date = dates[i]
-                prev_date = dates[i+1]
+            # 2. 일별 비교 (오늘 vs 어제, 어제 vs 그제...)
+            # 하루에 여러 번 수집했더라도, 그 날의 '가장 마지막(최신)' 데이터만 대표로 사용
+            for i in range(len(unique_days) - 1):
+                curr_day = unique_days[i]
+                prev_day = unique_days[i+1]
                 
-                df_curr = daily_data.get(recent_date)
-                df_prev = daily_data.get(prev_date)
+                # 각 날짜의 가장 최신 타임스탬프 찾기
+                curr_ts = df[df["date_only"] == curr_day]["수집일시"].max()
+                prev_ts = df[df["date_only"] == prev_day]["수집일시"].max()
                 
-                if df_curr is None or df_prev is None: continue
+                # 해당 타임스탬프의 데이터만 추출
+                curr_df = df[df["수집일시"] == curr_ts].set_index("상품명")
+                prev_df = df[df["수집일시"] == prev_ts].set_index("상품명")
                 
                 day_changes = []
-                for name, row in df_curr.iterrows():
-                    if name in df_prev.index:
-                        prev_row = df_prev.loc[name]
+                for name, row in curr_df.iterrows():
+                    if name in prev_df.index:
+                        prev_row = prev_df.loc[name]
                         if isinstance(prev_row, pd.DataFrame): prev_row = prev_row.iloc[0]
                         
                         curr_price = row["가격"]
                         prev_price = prev_row["가격"]
                         
+                        # 가격 비교
                         try:
                             cp = int(str(curr_price).replace(",", "").replace("원", ""))
                             pp = int(str(prev_price).replace(",", "").replace("원", ""))
@@ -685,19 +703,19 @@ if not df.empty:
                             if curr_price != prev_price:
                                 day_changes.append(f"🔄 **{name}**: {prev_price} → {curr_price}")
                         
+                        # 상태 비교 (품절 등)
                         if row["상태"] != prev_row["상태"]:
                              day_changes.append(f"📦 **{name}**: {prev_row['상태']} → {row['상태']}")
                 
                 if day_changes:
                     history_list.append({
-                        "date": recent_date,
-                        "prev_date": prev_date,
+                        "date": curr_day.strftime("%Y-%m-%d"),
+                        "prev_date": prev_day.strftime("%Y-%m-%d"),
                         "changes": day_changes,
-                        "expanded": (history_count == 0)
+                        "expanded": (i == 0) # 첫 번째(최신)만 펼침
                     })
-                    history_count += 1
             
-            return dates, history_list
+            return unique_days, history_list
 
         dates, history_list= get_history_data(df)
         

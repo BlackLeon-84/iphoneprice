@@ -24,6 +24,10 @@ SPREADSHEET_KEY = "1VfAiPUL--QsX7GatPESVzz80xG0BQ7Obj_mywUhJVcM"
 # 24: iPhone, 25: iPad, 26: Watch, 386: AirPods/Pencil, 27: Acc, 28: Tools
 TARGET_CATEGORIES = {
     "iPhone": "24",
+    "Acc_Apple_Comp": "357", # 구성품
+    "Acc_Apple_Film": "359", # 필름/케이스
+    "Acc_Apple_Adapter": "362", # 어댑터
+    "Acc_Apple_Cable": "363", # 케이블
     # "iPad": "25",
     # "Watch": "26",
     # "AirPods_Pencil": "386",
