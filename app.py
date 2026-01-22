@@ -168,9 +168,10 @@ if not df.empty:
     latest_date = df["수집일시"].dt.strftime("%Y-%m-%d %H:%M").iloc[0]
     st.caption(f"최종 업데이트: {latest_date} (KST)")
 
-    # [Scope Change] iPhone 데이터만 표시
+    # [Scope Change] iPhone 데이터 및 악세사리 표시
     if "카테고리" in df.columns:
-        df = df[df["카테고리"] == "iPhone"]
+        # iPhone 또는 Acc_로 시작하는 카테고리만 포함
+        df = df[ (df["카테고리"] == "iPhone") | (df["카테고리"].str.startswith("Acc_")) ]
 
     # 탭 구성: 검색 / 변동 내역 / 전체 목록
     tab1, tab3, tab2 = st.tabs(["🔍 부품 검색", "📉 변동 내역", "📋 전체 목록"])
@@ -195,22 +196,40 @@ if not df.empty:
             ("7+", "iPhone 7 Plus"), ("7", "iPhone 7"), ("6+", "iPhone 6 Plus"), ("6", "iPhone 6")
         ]
 
-        def extract_model_precise(name):
+        def extract_model_precise(row):
+            # 1. 악세사리 처리
+            cat = row["카테고리"]
+            if str(cat).startswith("Acc_"):
+                if "Apple" in cat: return "Apple"
+                return "기타 악세사리"
+
+            # 2. 아이폰 모델 파싱
+            name = row["상품명"]
             for pattern, display_name in MODEL_MAPPING:
                 if pattern.lower() in name.lower():
                     return display_name
             return "기타"
 
-        df["모델"] = df["상품명"].apply(extract_model_precise)
+        # [Changed] apply시 axis=1 사용 (카테고리 정보 접근 위해)
+        df["모델"] = df.apply(extract_model_precise, axis=1)
         
         # [Optimization] 부품명 파싱도 미리 수행 (캐싱)
-        def extract_part(name):
+        def extract_part(row):
+            name = row["상품명"]
+            cat = row["카테고리"]
+
+            # [New] 악세사리 부품 매핑
+            if str(cat).startswith("Acc_"):
+                if "Comp" in cat: return "구성품"
+                if "Film" in cat: return "필름/케이스"
+                return "기타"
+
             # [User Request] 제외 필터 (하우징, 일반형 등)
             if "하우징" in name: return None
-            if "(베젤형)" in name: return None # [User Request] 베젤형 하우징 제외
+            if "(베젤형)" in name: return None
             if "(일반형)" in name: return None
             if "(고급형)" in name: return None
-            if "13Pro 골드" in name: return None # 구체적인 예시 차단
+            if "13Pro 골드" in name: return None
             
             # 명시적 카테고리 (케이블은 기타로 통합되므로 제거)
             if "액정" in name: return "액정"
@@ -219,11 +238,11 @@ if not df.empty:
             if "유리" in name: return "후면유리"
             if "보드" in name: return "메인보드"
             
-            # 나머지는 모두 '기타'
             return "기타"
 
-        df["부품"] = df["상품명"].apply(extract_part)
-        # [Filter] None(하우징 등) 제거 (여기서 미리 제거하여 데이터량 축소)
+        # [Changed] apply시 axis=1 사용
+        df["부품"] = df.apply(extract_part, axis=1)
+        # [Filter] None 제거
         df = df.dropna(subset=["부품"])
 
         # 시리즈 매핑
@@ -231,7 +250,8 @@ if not df.empty:
         series_map = {}
         for m in unique_models:
             grp = "기타"
-            if "17" in m: grp = "iPhone 17 Series"
+            if m == "Apple": grp = "악세사리" # [New]
+            elif "17" in m: grp = "iPhone 17 Series"
             elif "16" in m: grp = "iPhone 16 Series"
             elif "15" in m: grp = "iPhone 15 Series"
             elif "14" in m: grp = "iPhone 14 Series"
