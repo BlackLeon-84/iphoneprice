@@ -314,6 +314,8 @@ if not df.empty:
                             if "iphone 7" in m_lower: return 24 if "plus" in m_lower else 23
                             if "iphone 8" in m_lower: return 26 if "plus" in m_lower else 25
 
+                            # 0순위: 16E (가장 오른쪽)
+                            if "16e" in m_lower: return 5
                             # 1순위: Pro Max (가장 뒤)
                             if "pro max" in m_lower: return 4
                             # 2순위: Pro
