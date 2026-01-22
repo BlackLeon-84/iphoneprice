@@ -273,16 +273,7 @@ if not df.empty:
             df, series_map = get_processed_data(df)
             
             # 순서 보장을 위한 리스트 정의 (최신순)
-            SERIES_ORDER = ["iPhone 17 Series", "iPhone 16 Series", "iPhone 15 Series", "iPhone 14 Series", "iPhone 13 Series", "iPhone 12 Series", "iPhone 11 Series", "iPhone X/XS/XR Series", "iPhone SE/8/7/6 Series"]
-            
-            # Session State 초기화
-            if "selected_model" not in st.session_state:
-                st.session_state.selected_model = None
-            if "selected_part" not in st.session_state:
-                st.session_state.selected_part = None
-            
-            # 순서 보장을 위한 리스트 정의 (최신순)
-            SERIES_ORDER = ["iPhone 17 Series", "iPhone 16 Series", "iPhone 15 Series", "iPhone 14 Series", "iPhone 13 Series", "iPhone 12 Series", "iPhone 11 Series", "iPhone X/XS/XR Series", "iPhone SE/8/7/6 Series"]
+            SERIES_ORDER = ["악세사리", "iPhone 17 Series", "iPhone 16 Series", "iPhone 15 Series", "iPhone 14 Series", "iPhone 13 Series", "iPhone 12 Series", "iPhone 11 Series", "iPhone X/XS/XR Series", "iPhone SE/8/7/6 Series"]
             
             # Session State 초기화
             if "selected_model" not in st.session_state:
@@ -380,8 +371,15 @@ if not df.empty:
                             
                             # 선택 이벤트 처리
                             if selection and (st.session_state.selected_model != short_label_map[selection]):
-                                st.session_state.selected_model = short_label_map[selection]
-                                st.session_state.selected_part = "액정"
+                                new_model = short_label_map[selection]
+                                st.session_state.selected_model = new_model
+                                
+                                # [Fix] 악세사리(Apple)는 '액정'이 없으므로 '구성품'을 기본값으로 설정
+                                if new_model == "Apple":
+                                    st.session_state.selected_part = "구성품"
+                                else:
+                                    st.session_state.selected_part = "액정"
+                                    
                                 st.rerun()
                     
             # [UI State 2] 모델이 선택되었을 때 -> 부품 선택 및 결과 화면
