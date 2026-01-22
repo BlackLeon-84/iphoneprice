@@ -59,4 +59,9 @@ venv.bak/
 .idea/
 
 # Custom
-output/
+
+# Secrets
+.streamlit/
+secrets.toml
+secrets.json
+service_account.json

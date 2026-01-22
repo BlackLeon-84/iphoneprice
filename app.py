@@ -359,7 +359,7 @@ if not df.empty:
                             # 선택 이벤트 처리
                             if selection and (st.session_state.selected_model != short_label_map[selection]):
                                 st.session_state.selected_model = short_label_map[selection]
-                                st.session_state.selected_part = None
+                                st.session_state.selected_part = "액정"
                                 st.rerun()
                     
             # [UI State 2] 모델이 선택되었을 때 -> 부품 선택 및 결과 화면
