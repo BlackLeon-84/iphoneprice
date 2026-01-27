@@ -235,6 +235,11 @@ if not df.empty:
             if "(일반형)" in name: return None
             if "(고급형)" in name: return None
             if "13Pro 골드" in name: return None
+
+            # [User Request] iPhone 7+, 8+ 액정 예외 처리 ((공), (재), (카))
+            if model_name in ["iPhone 7 Plus", "iPhone 8 Plus"]:
+                if any(x in name for x in ["(공)", "(재)", "(카)"]):
+                    return "액정"
             
             # 명시적 카테고리 (케이블은 기타로 통합되므로 제거)
             if "액정" in name: return "액정"
@@ -441,6 +446,12 @@ if not df.empty:
                     if "(일반형)" in name: return None
                     if "(고급형)" in name: return None
                     if "13Pro 골드" in name: return None # 구체적인 예시 차단
+
+                    # [User Request] iPhone 7+, 8+ 액정 예외 처리 ((공), (재), (카))
+                    # selected_model 변수가 상위 스코프에 있음
+                    if selected_model in ["iPhone 7 Plus", "iPhone 8 Plus"]:
+                        if any(x in name for x in ["(공)", "(재)", "(카)"]):
+                            return "액정"
                     
                     # 명시적 카테고리 (케이블은 기타로 통합되므로 제거)
                     if "액정" in name: return "액정"
