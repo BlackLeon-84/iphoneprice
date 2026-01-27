@@ -221,7 +221,8 @@ if not df.empty:
             # [New] 악세사리 부품 상세 분류
             if str(cat).startswith("Acc_") or "악세" in str(cat) or model_name == "악세사리":
                 # 1. 필름류 (필름, 카메라링, 카메라필름)
-                if any(x in name for x in ["필름", "카메라링", "카메라 링", "강화유리"]): return "필름"
+                # 1. 필름류 (필름, 카메라링, 카메라필름)
+                if any(x in name for x in ["필름", "카메라링", "카메라 링", "강화유리", "카메라 렌즈 보호링"]): return "필름"
                 # 2. 케이스류
                 if "케이스" in name: return "케이스"
                 # 3. 충전기류 (케이블, 어댑터 통합)
@@ -442,7 +443,7 @@ if not df.empty:
                 def extract_part(name):
                     # [New] 악세사리 모델일 경우 별도 분류
                     if selected_model == "악세사리":
-                        if any(x in name for x in ["필름", "카메라링", "카메라 링", "강화유리"]): return "필름"
+                        if any(x in name for x in ["필름", "카메라링", "카메라 링", "강화유리", "카메라 렌즈 보호링"]): return "필름"
                         if "케이스" in name: return "케이스"
                         if any(x in name for x in ["케이블", "어댑터", "어덥터", "충전기", "젠더"]): return "충전기"
                         return "기타"
