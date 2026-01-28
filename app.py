@@ -558,8 +558,14 @@ if not df.empty:
                             return 0
                             
                     final_df["가격_숫자"] = final_df["가격"].apply(parse_price)
+                    
+                    # [Fix] 중복 제거 로직 개선 (최신 데이터 우선)
+                    # 1. 수집일시 기준 내림차순 정렬 (최신 데이터가 위로)
+                    final_df = final_df.sort_values(by="수집일시", ascending=False)
+                    # 2. 상품명이 같으면 중복 제거 (가장 위의 최신 데이터만 남김, 가격 변동 무시)
+                    final_df = final_df.drop_duplicates(subset=["상품명"])
+                    # 3. 보기 좋게 가격순 정렬
                     final_df = final_df.sort_values(by="가격_숫자", ascending=False)
-                    final_df = final_df.drop_duplicates(subset=["상품명", "가격"])
                     
                     if not final_df.empty:
                         # [UI Update] HTML/CSS 기반 반응형 그리드 적용
