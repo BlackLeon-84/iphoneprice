@@ -496,44 +496,7 @@ if not df.empty:
                     st.markdown(f"### 📱 {selected_model}")
 
                 # 선택된 모델로 변수 설정
-                model_df = df[df["모델"] == selected_model]
-                
-                # 2. 부품명 파싱
-                def extract_part(name):
-                    # [New] 악세사리 모델일 경우 별도 분류
-                    if selected_model == "악세사리":
-                        if any(x in name for x in ["필름", "카메라링", "카메라 링", "강화유리", "카메라 렌즈 보호링"]): return "필름"
-                        if "케이스" in name: return "케이스"
-                        if any(x in name for x in ["케이블", "어댑터", "어덥터", "충전기", "젠더"]): return "충전기"
-                        return "기타"
-
-                    # [User Request] 제외 필터 (하우징, 일반형 등)
-                    if "하우징" in name: return None
-                    if "(베젤형)" in name: return None # [User Request] 베젤형 하우징 제외
-                    if "(일반형)" in name: return None
-                    if "(고급형)" in name: return None
-                    if "13Pro 골드" in name: return None # 구체적인 예시 차단
-
-                    # [User Request] iPhone 7+, 8+ 액정 예외 처리 ((정), (재), (카))
-                    # selected_model 변수가 상위 스코프에 있음
-                    if selected_model in ["iPhone 7 Plus", "iPhone 8 Plus"]:
-                        if any(x in name for x in ["(정)", "(재)", "(카)"]):
-                            return "액정"
-                    
-                    # 명시적 카테고리 (케이블은 기타로 통합되므로 제거)
-                    if "액정" in name: return "액정"
-                    if "배터리" in name: return "배터리"
-                    if "카메라" in name: return "카메라"
-                    if "유리" in name: return "후면유리"
-                    if "보드" in name: return "메인보드"
-                    
-                    # 나머지는 모두 '기타'
-                    return "기타"
-                
-                model_df["부품"] = model_df["상품명"].apply(extract_part)
-                
-                # [Filter] None(하우징 등) 제거
-                model_df = model_df.dropna(subset=["부품"])
+                model_df = df[df["모델"] == selected_model].copy()
                 
                 # [Sort] 부품 우선순위 정렬
                 def part_sort_key(p):
