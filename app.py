@@ -110,21 +110,30 @@ with st.sidebar:
     st.divider()
 
     if st.button("🔄 가격 정보 업데이트 (크롤링)", use_container_width=True):
-        with st.status("데이터 수집 중... (약 1-2분 소요)", expanded=True) as status:
-            st.write("서버에 접속하여 최신 가격 정보를 가져옵니다...")
-            success, output = run_scraper_script()
-            if success:
-                st.write("구글 시트에 저장 완료!")
-                # [Optimization] 캐시 초기화 (새 데이터 로드 위해)
+        st.toast("백그라운드에서 최신 단가표를 수집 중입니다. 화면 멈춤 없이 앱을 계속 이용하실 수 있습니다!", icon="⏳")
+        import threading
+        import subprocess
+        import json
+        
+        def bg_scraper_manual(env_dict):
+            try:
+                script_path = os.path.join(BASE_DIR, "scraper_main.py")
+                subprocess.run([sys.executable, script_path], capture_output=True, text=True, encoding='utf-8', check=True, env=env_dict, timeout=180)
+                # 업데이트 성공 시 캐시 초기화
                 load_data.clear()
-                
-                status.update(label="업데이트 완료!", state="complete", expanded=False)
-                st.toast("가격 정보가 업데이트 되었습니다!", icon="✅")
-                time.sleep(1)
-                st.rerun()
-            else:
-                status.update(label="업데이트 실패", state="error", expanded=True)
-                st.error(f"오류 발생:\n{output}")
+            except Exception as e:
+                print("Manual background update failed:", e)
+
+        env = os.environ.copy()
+        if "monitor_login" in st.secrets:
+            env["FIXCON_ID"] = st.secrets["monitor_login"]["username"]
+            env["FIXCON_PW"] = st.secrets["monitor_login"]["password"]
+        if "gcp_service_account" in st.secrets:
+            env["GCP_SERVICE_ACCOUNT"] = json.dumps(dict(st.secrets["gcp_service_account"]))
+        
+        t = threading.Thread(target=bg_scraper_manual, args=(env,))
+        t.daemon = True
+        t.start()
     
     # st.info("데이터는 'Fixcon_DB' 구글 시트에 저장됩니다.")
     # st.markdown(f"[구글 시트 바로가기](https://docs.google.com/spreadsheets/d/{SPREADSHEET_KEY})")
