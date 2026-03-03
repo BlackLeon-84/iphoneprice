@@ -8,6 +8,7 @@ import sys
 import time
 import subprocess
 from datetime import datetime, timezone, timedelta
+from streamlit_autorefresh import st_autorefresh
 
 # --- 설정 ---
 st.set_page_config(page_title="픽스콘 단가표 모니터", layout="wide")
@@ -124,6 +125,8 @@ with st.sidebar:
                 load_data.clear()
             except Exception as e:
                 print("Manual background update failed:", e)
+            finally:
+                st.session_state["is_updating"] = False
 
         env = os.environ.copy()
         if "monitor_login" in st.secrets:
@@ -132,11 +135,21 @@ with st.sidebar:
         if "gcp_service_account" in st.secrets:
             env["GCP_SERVICE_ACCOUNT"] = json.dumps(dict(st.secrets["gcp_service_account"]))
         
+        st.session_state["is_updating"] = True
         t = threading.Thread(target=bg_scraper_manual, args=(env,))
         add_script_run_ctx(t)
         t.daemon = True
         t.start()
     
+    # [Feature] 백그라운드 업데이트 진행 중이면 자동 새로고침 (5초 간격)
+    if st.session_state.get("is_updating", False):
+        st.info("🔄 크롤링이 진행 중입니다... (완료 시 자동 새로고침 됨)")
+        st_autorefresh(interval=5000, key="data_update_refresh")
+    elif "is_updating" in st.session_state and not st.session_state["is_updating"]:
+        # 업데이트가 방금 끝난 상태라면 성공 메시지 띄운 후 상태 삭제
+        st.success("✨ 수집 완료! 최신 단가표가 반영되었습니다.")
+        del st.session_state["is_updating"]
+
     # st.info("데이터는 'Fixcon_DB' 구글 시트에 저장됩니다.")
     # st.markdown(f"[구글 시트 바로가기](https://docs.google.com/spreadsheets/d/{SPREADSHEET_KEY})")
 
@@ -187,6 +200,8 @@ if not df.empty and "수집일시" in df.columns:
                         load_data.clear()
                     except Exception as e:
                         print("Background update failed:", e)
+                    finally:
+                        st.session_state["is_updating"] = False
 
                 env = os.environ.copy()
                 if "monitor_login" in st.secrets:
@@ -195,6 +210,7 @@ if not df.empty and "수집일시" in df.columns:
                 if "gcp_service_account" in st.secrets:
                     env["GCP_SERVICE_ACCOUNT"] = json.dumps(dict(st.secrets["gcp_service_account"]))
                 
+                st.session_state["is_updating"] = True
                 t = threading.Thread(target=bg_scraper, args=(env,))
                 add_script_run_ctx(t)
                 t.daemon = True
