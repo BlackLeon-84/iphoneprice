@@ -193,7 +193,7 @@ if not df.empty:
             ("11Pro-Max", "iPhone 11 Pro Max"), ("11Pro", "iPhone 11 Pro"), ("11", "iPhone 11"),
             ("XSMax", "iPhone XS Max"), ("XS Max", "iPhone XS Max"), ("XS-Max", "iPhone XS Max"), ("XS", "iPhone XS"), ("XR", "iPhone XR"), ("X", "iPhone X"),
             ("SE", "iPhone SE"), ("8+", "iPhone 8 Plus"), ("8", "iPhone 8"),
-            ("7+", "iPhone 7 Plus"), ("7", "iPhone 7"), ("6+", "iPhone 6 Plus"), ("6", "iPhone 6")
+            ("7+", "iPhone 7 Plus"), ("7", "iPhone 7"), ("6S+", "iPhone 6S Plus"), ("6S", "iPhone 6S"), ("6+", "iPhone 6 Plus"), ("6", "iPhone 6")
         ]
 
         def extract_model_precise(row):
@@ -330,11 +330,13 @@ if not df.empty:
                                 if "xs" in m_lower: return 12
                                 return 11 # X
 
-                            # [Exceptions] Old Series (SE -> 6 -> 6+ -> 7 -> 7+ -> 8 -> 8+)
+                            # [Exceptions] Old Series (SE -> 6 -> 6+ -> 6S -> 6S+ -> 7 -> 7+ -> 8 -> 8+)
                             if "iphone se" in m_lower: return 20
-                            if "iphone 6" in m_lower: return 22 if "plus" in m_lower else 21
-                            if "iphone 7" in m_lower: return 24 if "plus" in m_lower else 23
-                            if "iphone 8" in m_lower: return 26 if "plus" in m_lower else 25
+                            if "iphone 6" in m_lower:
+                                if "6s" in m_lower: return 24 if "plus" in m_lower else 23
+                                return 22 if "plus" in m_lower else 21
+                            if "iphone 7" in m_lower: return 26 if "plus" in m_lower else 25
+                            if "iphone 8" in m_lower: return 28 if "plus" in m_lower else 27
 
                             # 0순위: 16E (가장 오른쪽)
                             if "16e" in m_lower: return 5
