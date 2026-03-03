@@ -45,6 +45,16 @@ def load_data():
         ws = sh.sheet1
         data = ws.get_all_records()
         df = pd.DataFrame(data)
+        
+        # [Optimization] 전처리 캐싱 내재화 (매 클릭마다 수천 줄 재계산 방지)
+        if not df.empty and "수집일시" in df.columns:
+            # 1. 날짜 변환
+            df["수집일시"] = pd.to_datetime(df["수집일시"], errors='coerce')
+            # 2. 날짜 비어있는 행 제거
+            df = df.dropna(subset=["수집일시"])
+            # 3. 최신순 정렬 미리 수행
+            df = df.sort_values(by="수집일시", ascending=False)
+            
         return df
     except Exception as e:
         st.error(f"데이터 로드 실패: {e}")
@@ -156,12 +166,8 @@ with st.sidebar:
 # 2. 데이터 로드 및 전처리
 df = load_data()
 
-# [Fix] 데이터 로드 후 즉시 날짜 변환 (전역 적용)
+# [Fix] 시간에 따른 자동 업데이트 체크
 if not df.empty and "수집일시" in df.columns:
-    # 1. 날짜 변환 (오류 발생 시 NaT 처리)
-    df["수집일시"] = pd.to_datetime(df["수집일시"], errors='coerce')
-    # 2. 날짜가 비어있는 행 제거 (유효한 데이터만 남김)
-    df = df.dropna(subset=["수집일시"])
 
     try:
         last_update = df["수집일시"].max()
@@ -220,8 +226,7 @@ if not df.empty and "수집일시" in df.columns:
         pass # 날짜 파싱 오류 등 무시
 
 if not df.empty:
-    # 정렬 및 메타데이터 표시
-    df = df.sort_values(by="수집일시", ascending=False)
+    # 메타데이터 표시
     latest_date = df["수집일시"].dt.strftime("%Y-%m-%d %H:%M").iloc[0]
     st.caption(f"최종 업데이트: {latest_date} (KST)")
 
