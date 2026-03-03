@@ -270,6 +270,36 @@ if not df.empty:
                 if pattern.lower() in name.lower():
                     return display_name
             return "기타"
+            
+        # [User Request] 모델 정렬 순서 정의 (기본 -> 에어/플러스/미니 -> 프로 -> 맥스)
+        def model_sort_key(m):
+            m_lower = m.lower()
+
+            # [Exceptions] X Series (X -> XS -> XS Max -> XR)
+            if "iphone x" in m_lower or "xs" in m_lower or "xr" in m_lower:
+                if "xr" in m_lower: return 14
+                if "xs max" in m_lower: return 13
+                if "xs" in m_lower: return 12
+                return 11 # X
+
+            # [Exceptions] Old Series (SE -> 6 -> 6+ -> 6S -> 6S+ -> 7 -> 7+ -> 8 -> 8+)
+            if "iphone se" in m_lower: return 20
+            if "iphone 6" in m_lower:
+                if "6s" in m_lower: return 24 if "plus" in m_lower else 23
+                return 22 if "plus" in m_lower else 21
+            if "iphone 7" in m_lower: return 26 if "plus" in m_lower else 25
+            if "iphone 8" in m_lower: return 28 if "plus" in m_lower else 27
+
+            # 0순위: 16E (가장 오른쪽)
+            if "16e" in m_lower: return 5
+            # 1순위: Pro Max (가장 뒤)
+            if "pro max" in m_lower: return 4
+            # 2순위: Pro
+            if "pro" in m_lower: return 3
+            # 3순위: Plus / Mini / Air
+            if any(x in m_lower for x in ["plus", "+", "mini", "air"]): return 2
+            # 4순위: 기본형 (가장 앞)
+            return 1
 
         # [Changed] apply시 axis=1 사용 (카테고리 정보 접근 위해)
         df["모델"] = df.apply(extract_model_precise, axis=1)
@@ -380,39 +410,28 @@ if not df.empty:
                         # 해당 시리즈에 속한 모델 찾기
                         current_models = [m for m, s in series_map.items() if s == series]
                         if not current_models: continue
+                        # 모델명 정렬 (점수 오름차순), get_processed_data() 내부에 정의된 sort 함수 사용 불가하므로 직접 참조
                         
-                        # [User Request] 모델 정렬 순서 정의 (기본 -> 에어/플러스/미니 -> 프로 -> 맥스)
-                        def model_sort_key(m):
+                        def local_model_sort_key(m):
                             m_lower = m.lower()
-
-                            # [Exceptions] X Series (X -> XS -> XS Max -> XR)
                             if "iphone x" in m_lower or "xs" in m_lower or "xr" in m_lower:
                                 if "xr" in m_lower: return 14
                                 if "xs max" in m_lower: return 13
                                 if "xs" in m_lower: return 12
                                 return 11 # X
-
-                            # [Exceptions] Old Series (SE -> 6 -> 6+ -> 6S -> 6S+ -> 7 -> 7+ -> 8 -> 8+)
                             if "iphone se" in m_lower: return 20
                             if "iphone 6" in m_lower:
                                 if "6s" in m_lower: return 24 if "plus" in m_lower else 23
                                 return 22 if "plus" in m_lower else 21
                             if "iphone 7" in m_lower: return 26 if "plus" in m_lower else 25
                             if "iphone 8" in m_lower: return 28 if "plus" in m_lower else 27
-
-                            # 0순위: 16E (가장 오른쪽)
                             if "16e" in m_lower: return 5
-                            # 1순위: Pro Max (가장 뒤)
                             if "pro max" in m_lower: return 4
-                            # 2순위: Pro
                             if "pro" in m_lower: return 3
-                            # 3순위: Plus / Mini / Air
                             if any(x in m_lower for x in ["plus", "+", "mini", "air"]): return 2
-                            # 4순위: 기본형 (가장 앞)
                             return 1
 
-                        # 모델명 정렬 (점수 오름차순)
-                        current_models = sorted(current_models, key=model_sort_key)
+                        current_models = sorted(current_models, key=local_model_sort_key)
 
                         # [UI Update] 각 시리즈를 박스로 감싸서 경계선 추가 (가독성 향상)
                         with st.container(border=True):
