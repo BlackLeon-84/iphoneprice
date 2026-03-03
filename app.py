@@ -141,24 +141,52 @@ if not df.empty and "수집일시" in df.columns:
 
     try:
         last_update = df["수집일시"].max()
-        # [Fix] KST Timezone check
         kst = timezone(timedelta(hours=9))
-        today = datetime.now(kst).date()
+        now_kst = datetime.now(kst)
         
-        # 마지막 수집일이 오늘이 아니면 (즉, 어제 데이터면)
-        if last_update.date() < today:
+        # [Fix] 오전 10시 기준 업데이트 (10시간 차감하여 하루의 기준을 오전 10시로 변경)
+        business_date = (now_kst - timedelta(hours=10)).date()
+        
+        try:
+            last_update_tz_naive = last_update.tz_localize(None)
+        except:
+            last_update_tz_naive = last_update
+            
+        last_update_business_date = (last_update_tz_naive - timedelta(hours=10)).date()
+        
+        # 마지막으로 수집된 시간이 "어제 오전 10시 ~ 오늘 오전 10시 이전"이고, 현재 "오늘 오전 10시"가 지났다면
+        if last_update_business_date < business_date:
             # Session State를 이용해 무한 루프 방지 (한 번만 실행)
             if "auto_updated" not in st.session_state:
-                with st.status("📅 날짜가 변경되어 자동으로 가격을 업데이트합니다...", expanded=True) as status:
-                    success, output = run_scraper_script()
-                    if success:
-                        load_data.clear() # 캐시 초기화
-                        st.session_state["auto_updated"] = True
-                        status.update(label="자동 업데이트 완료!", state="complete", expanded=False)
-                        time.sleep(1)
-                        st.rerun()
-                    else:
-                        st.error(f"자동 업데이트 실패: {output}")
+                st.session_state["auto_updated"] = True
+                
+                # [Fix] 백그라운드 업데이트 (UI 블로킹 방지)
+                st.toast("오전 10시가 지나 백그라운드에서 최신 단가표를 수집 중입니다. (기존 데이터 조회는 계속 가능합니다)", icon="⏳")
+                
+                import threading
+                import subprocess
+                import json
+                
+                def bg_scraper(env_dict):
+                    try:
+                        script_path = os.path.join(BASE_DIR, "scraper_main.py")
+                        subprocess.run([sys.executable, script_path], capture_output=True, text=True, encoding='utf-8', check=True, env=env_dict, timeout=180)
+                        # 업데이트 성공 시 캐시 초기화 (다음 클릭이나 탭 이동시 새 데이터가 보이도록)
+                        load_data.clear()
+                    except Exception as e:
+                        print("Background update failed:", e)
+
+                env = os.environ.copy()
+                if "monitor_login" in st.secrets:
+                    env["FIXCON_ID"] = st.secrets["monitor_login"]["username"]
+                    env["FIXCON_PW"] = st.secrets["monitor_login"]["password"]
+                if "gcp_service_account" in st.secrets:
+                    env["GCP_SERVICE_ACCOUNT"] = json.dumps(dict(st.secrets["gcp_service_account"]))
+                
+                t = threading.Thread(target=bg_scraper, args=(env,))
+                t.daemon = True
+                t.start()
+                
     except Exception as e:
         pass # 날짜 파싱 오류 등 무시
 
