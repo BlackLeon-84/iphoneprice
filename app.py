@@ -114,6 +114,7 @@ with st.sidebar:
         import threading
         import subprocess
         import json
+        from streamlit.runtime.scriptrunner import add_script_run_ctx
         
         def bg_scraper_manual(env_dict):
             try:
@@ -132,6 +133,7 @@ with st.sidebar:
             env["GCP_SERVICE_ACCOUNT"] = json.dumps(dict(st.secrets["gcp_service_account"]))
         
         t = threading.Thread(target=bg_scraper_manual, args=(env,))
+        add_script_run_ctx(t)
         t.daemon = True
         t.start()
     
@@ -175,6 +177,7 @@ if not df.empty and "수집일시" in df.columns:
                 import threading
                 import subprocess
                 import json
+                from streamlit.runtime.scriptrunner import add_script_run_ctx
                 
                 def bg_scraper(env_dict):
                     try:
@@ -193,6 +196,7 @@ if not df.empty and "수집일시" in df.columns:
                     env["GCP_SERVICE_ACCOUNT"] = json.dumps(dict(st.secrets["gcp_service_account"]))
                 
                 t = threading.Thread(target=bg_scraper, args=(env,))
+                add_script_run_ctx(t)
                 t.daemon = True
                 t.start()
                 
